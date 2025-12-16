@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ScopeGuard - Project Profitability</title>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ==========================================================================
+           ZONE 1: THEME - BLUEPRINT / TECHNICAL
+           ========================================================================== */
+        :root {
+            /* Blueprint Theme */
+            --primary: #2563eb;       /* Architectural Blue */
+            --primary-light: #60a5fa; 
+            --primary-dark: #1e3a8a;  
+            --secondary: #ef4444;     /* Alert Red */
+            
+            /* Clean Drafting Look */
+            --bg-gradient-start: #f0f9ff;
+            --bg-gradient-end: #e0f2fe;
+            --dark-text: #1e293b;
+            --card-bg: #ffffff;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --radius: 6px; /* Squarer corners for technical feel */
+            
+            --profit-color: #10b981;
+            --loss-color: #ef4444;
+        }
+
+        /* --- CORE ENGINE CSS --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(180deg, var(--bg-gradient-start), var(--bg-gradient-end)); color: var(--dark-text); padding-bottom: 80px; min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+        
+        /* Header - Grid Paper Effect */
+        .header { 
+            background: var(--primary-dark); 
+            color: white; 
+            padding: 16px; 
+            text-align: center; 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+            box-shadow: var(--shadow);
+            border-bottom: 2px solid var(--primary-light);
+            background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .header h1 { font-size: 1.4rem; display: flex; align-items: center; justify-content: center; gap: 10px; letter-spacing: 0.5px; font-weight: 700; }
+        
+        /* Tab Nav */
+        .tab-nav { background: white; position: sticky; top: 60px; z-index: 999; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .tab-buttons { display: flex; min-width: 100%; border-bottom: 1px solid #e2e8f0; }
+        .tab-btn { flex: 1; padding: 14px; border: none; background: none; border-bottom: 3px solid transparent; font-weight: 600; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.8rem; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: #f8fafc; }
+        .tab-content { display: none; padding: 20px 0; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards */
+        .card { background: var(--card-bg); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); border: 1px solid #e2e8f0; }
+        .card-header h3 { color: var(--primary-dark); display: flex; align-items: center; gap: 8px; font-size: 1.1rem; margin-bottom: 15px; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 1px; }
+        
+        /* Sliders */
+        .slider-group { margin-bottom: 20px; }
+        .slider-label { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
+        .slider-val { background: #eff6ff; padding: 4px 8px; border-radius: 4px; color: var(--primary); font-weight: 700; font-family: monospace; }
+        input[type=range] { width: 100%; height: 6px; background: #cbd5e1; border-radius: 3px; outline: none; -webkit-appearance: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: var(--primary); border: 3px solid white; border-radius: 50%; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+
+        /* Radios */
+        .radio-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+        .radio-btn { padding: 10px 4px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; cursor: pointer; font-size: 0.85rem; transition: 0.2s; }
+        .radio-btn.selected { border-color: var(--primary); background: #eff6ff; color: var(--primary); font-weight: 700; }
+        
+        /* Toggles */
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed #cbd5e1; font-weight: 500; font-size: 0.9rem; }
+        .toggle-switch { position: relative; width: 40px; height: 22px; background: #cbd5e1; border-radius: 11px; transition: 0.3s; }
+        .toggle-switch::after { content: ''; position: absolute; left: 2px; top: 2px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: 0.3s; }
+        input:checked + .toggle-switch { background: var(--primary); }
+        input:checked + .toggle-switch::after { transform: translateX(18px); }
+
+        /* Metrics */
+        .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+        .metric-box { background: #f8fafc; padding: 15px; border-radius: 6px; text-align: center; border: 1px solid #e2e8f0; }
+        .metric-val { font-size: 1.6rem; font-weight: 800; color: var(--dark-text); font-family: monospace; }
+        .metric-lbl { font-size: 0.75rem; color: #64748b; margin-top: 4px; text-transform: uppercase; font-weight: 600; }
+
+        /* Items Grid */
+        .item-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .item-card { background: #f8fafc; padding: 12px; border-radius: 6px; text-align: center; cursor: pointer; border: 1px solid #e2e8f0; transition: 0.2s; }
+        .item-card:active { transform: scale(0.98); border-color: var(--primary); background: #eff6ff; }
+        .item-icon { font-size: 1.4rem; margin-bottom: 5px; }
+
+        /* Progress Bars */
+        .prog-bar-container { margin-bottom: 15px; }
+        .prog-label { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; }
+        .prog-bg { height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
+        .prog-fill { height: 100%; background: var(--primary); transition: width 0.5s; }
+        .prog-fill.danger { background: var(--secondary); }
+        .prog-fill.success { background: var(--profit-color); }
+
+        /* Chart */
+        #chart-container { width: 100%; height: 320px; overflow: hidden; border-radius: 6px; border: 1px solid #e2e8f0; }
+        
+        /* Money Classes */
+        .currency::before { content: '$'; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fas fa-ruler-combined"></i> ScopeGuard</h1>
+        <div style="font-size: 0.75rem; opacity: 0.9; font-family: monospace;">PROJECT PROFITABILITY ANALYZER</div>
+    </div>
+
+    <div class="tab-nav">
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab('tab-calc', this)">
+                <i class="fas fa-calculator"></i> Estimator
+            </button>
+            <button class="tab-btn" onclick="switchTab('tab-items', this)">
+                <i class="fas fa-layer-group"></i> Scope Stack
+            </button>
+            <button class="tab-btn" onclick="switchTab('tab-data', this)">
+                <i class="fas fa-file-invoice-dollar"></i> Profitability
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        
+        <div id="tab-calc" class="tab-content active">
+            
+            <div class="card">
+                <div id="chart-container"></div>
+            </div>
+
+            <div class="card">
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <div class="metric-val currency" id="disp-metric-1">0</div>
+                        <div class="metric-lbl">Effective Hourly Rate</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-val" id="disp-metric-2">0h</div>
+                        <div class="metric-lbl">Hours 'Til Break-Even</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h3><i class="fas fa-sliders-h"></i> Contract Parameters</h3></div>
+                
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Fixed Project Fee</span>
+                        <span class="slider-val currency" id="val-varA">5,000</span>
+                    </div>
+                    <input type="range" id="input-varA" min="500" max="20000" step="500" value="5000" oninput="updateEngine()">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>Target Hourly Rate</span>
+                        <span class="slider-val currency" id="val-varB">75</span>
+                    </div>
+                    <input type="range" id="input-varB" min="20" max="250" step="5" value="75" oninput="updateEngine()">
+                </div>
+
+                <div class="radio-group">
+                    <div class="radio-btn" onclick="setMode('simple', this)">Simple Site</div>
+                    <div class="radio-btn selected" onclick="setMode('std', this)">Standard App</div>
+                    <div class="radio-btn" onclick="setMode('complex', this)">Complex SaaS</div>
+                </div>
+
+                <div class="toggle-row">
+                    <span><i class="fas fa-file-contract"></i> Strict Contract (No Revisions)</span>
+                    <label>
+                        <input type="checkbox" id="toggle-turbo" onchange="updateEngine()" style="display:none;">
+                        <div class="toggle-switch"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-items" class="tab-content">
+            <div class="card">
+                <div class="card-header"><h3><i class="fas fa-plus-circle"></i> Add Scope Events</h3></div>
+                <div class="item-grid" id="preset-grid">
+                    </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>Current Stack Impact</h3></div>
+                <div id="active-stack-list" style="color: #64748b; text-align: center; padding: 20px; font-size: 0.9rem;">
+                    No events added.
+                </div>
+                <button onclick="clearStack()" style="width:100%; padding:12px; background:var(--secondary); color:white; border:none; border-radius:4px; margin-top:10px; font-weight:600; text-transform: uppercase; letter-spacing: 1px;">Reset Scope</button>
+            </div>
+        </div>
+
+        <div id="tab-data" class="tab-content">
+            <div class="card">
+                <div class="card-header"><h3><i class="fas fa-chart-bar"></i> Efficiency Assessment</h3></div>
+                
+                <div class="prog-bar-container">
+                    <div class="prog-label">
+                        <span>Budget Burn</span>
+                        <span id="lbl-risk">0%</span>
+                    </div>
+                    <div class="prog-bg"><div class="prog-fill" id="bar-risk" style="width: 0%"></div></div>
+                </div>
+
+                <div class="prog-bar-container">
+                    <div class="prog-label">
+                        <span>Margin Health</span>
+                        <span id="lbl-sust">0%</span>
+                    </div>
+                    <div class="prog-bg"><div class="prog-fill success" id="bar-sust" style="width: 0%"></div></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header"><h3><i class="fas fa-comment-dots"></i> Project Status</h3></div>
+                <div id="recommendation-text" style="font-size: 0.95rem; line-height: 1.6; padding: 10px; background: #f8fafc; border-left: 4px solid var(--primary); border-radius: 0 4px 4px 0;">
+                    Calculating...
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION ---
+        const config = {
+            mode: 'std',
+            presets: [
+                { id: 1, name: 'Scope Creep', value: -8, icon: '👻', desc: '+8 Hours' },
+                { id: 2, name: 'Vague Brief', value: -12, icon: '🌫️', desc: '+12 Hours' },
+                { id: 3, name: 'Design Changes', value: -6, icon: '🎨', desc: '+6 Hours' },
+                { id: 4, name: 'Legacy Code', value: -15, icon: '🕸️', desc: '+15 Hours' },
+                { id: 5, name: 'Reusable Asset', value: 8, icon: '📦', desc: '-8 Hours' },
+                { id: 6, name: 'Fast Approval', value: 5, icon: '✅', desc: '-5 Hours' }
+            ]
+        };
+
+        let state = {
+            fee: 5000,
+            targetRate: 75,
+            strictContract: false,
+            stack: []
+        };
+
+        // --- 2. ENGINE LOOP ---
+        function updateEngine() {
+            state.fee = parseFloat(document.getElementById('input-varA').value);
+            state.targetRate = parseFloat(document.getElementById('input-varB').value);
+            state.strictContract = document.getElementById('toggle-turbo').checked;
+
+            const results = calculateModel(state);
+            renderChart(results);
+            updateMetrics(results);
+            updateLabels();
+        }
+
+        // --- 3. MATH MODEL: BURN RATE ---
+        function calculateModel(input) {
+            // Estimate Base Hours needed based on Fee & Complexity Mode
+            // Assumption: You usually estimate perfectly at $100/hr
+            let complexityMult = 1.0;
+            if(config.mode === 'simple') complexityMult = 0.7;
+            if(config.mode === 'complex') complexityMult = 1.5;
+
+            // Base Estimated Hours (The "Ideal" Scenario)
+            // e.g., $5000 fee / $100 std rate = 50 hours base
+            let estimatedHours = (input.fee / 100) * complexityMult;
+
+            // Apply Stack (Scope Creep adds hours)
+            // Note: Positive stack values (Reusable Assets) REDUCE hours (Good)
+            // Negative stack values (Scope Creep) ADD hours (Bad)
+            // So we subtract the value. (- -8 = +8 hours)
+            let stackImpact = input.stack.reduce((sum, item) => sum + item.value, 0);
+            let actualHours = estimatedHours - stackImpact;
+
+            if (input.strictContract) actualHours *= 0.9; // 10% efficiency gain
+
+            // Generate Curve: Effective Rate vs Hours Worked
+            // We plot from 0 hours up to Actual Hours + Buffer
+            let xData = [];
+            let yData = [];
+            let breakEvenHour = 0;
+            
+            // Plot range: 0 to 150% of expected hours
+            let maxPlotHours = Math.max(actualHours * 1.5, 20);
+
+            for (let h = 1; h <= maxPlotHours; h += 2) {
+                xData.push(h);
+                // Effective Rate = Fee / Hours
+                let effRate = input.fee / h;
+                yData.push(effRate);
+
+                // Find where we cross the Target Rate line
+                if (effRate >= input.targetRate) {
+                    breakEvenHour = h;
+                }
+            }
+
+            // Calculate final metrics
+            let finalRate = input.fee / actualHours;
+            let profitMargin = ((finalRate - input.targetRate) / input.targetRate) * 100;
+            let hoursRemaining = Math.max(0, breakEvenHour - actualHours);
+
+            return {
+                x: xData,
+                y: yData,
+                finalRate: Math.round(finalRate),
+                targetRate: input.targetRate,
+                actualHours: Math.round(actualHours),
+                breakEvenHour: Math.round(breakEvenHour),
+                profitMargin: profitMargin,
+                isProfitable: finalRate >= input.targetRate
+            };
+        }
+
+        // --- 4. RENDERERS ---
+        function renderChart(data) {
+            const trace1 = {
+                x: data.x,
+                y: data.y,
+                mode: 'lines',
+                name: 'Effective Rate',
+                line: { color: '#2563eb', width: 4 },
+                fill: 'tozeroy',
+                fillcolor: 'rgba(37, 99, 235, 0.1)'
+            };
+
+            const trace2 = {
+                x: [0, Math.max(...data.x)],
+                y: [data.targetRate, data.targetRate],
+                mode: 'lines',
+                name: 'Target Rate',
+                line: { color: '#ef4444', width: 2, dash: 'dash' }
+            };
+
+            // Vertical line for current project hours
+            const trace3 = {
+                x: [data.actualHours, data.actualHours],
+                y: [0, Math.max(...data.y)],
+                mode: 'lines',
+                name: 'Projected Hours',
+                line: { color: '#1e293b', width: 2, dash: 'dot' }
+            };
+
+            const layout = {
+                margin: { t: 20, r: 20, l: 50, b: 40 },
+                height: 320,
+                showlegend: false,
+                xaxis: { title: 'Hours Worked' },
+                yaxis: { title: 'Hourly Rate ($)', range: [0, data.targetRate * 3] },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(241, 245, 249, 0.5)',
+                annotations: [{
+                    x: data.actualHours,
+                    y: data.finalRate,
+                    text: `$${data.finalRate}/hr`,
+                    showarrow: true,
+                    arrowhead: 2,
+                    ax: 20,
+                    ay: -30
+                }]
+            };
+
+            Plotly.newPlot('chart-container', [trace1, trace2, trace3], layout, {displayModeBar: false});
+        }
+
+        function updateMetrics(data) {
+            // Metrics
+            const rateBox = document.getElementById('disp-metric-1');
+            rateBox.textContent = data.finalRate;
+            if(data.isProfitable) {
+                rateBox.style.color = 'var(--profit-color)';
+            } else {
+                rateBox.style.color = 'var(--secondary)';
+            }
+
+            document.getElementById('disp-metric-2').textContent = data.actualHours + "h";
+            document.querySelector('#disp-metric-2 + .metric-lbl').textContent = `Total Est. Hours`;
+
+            // Bars
+            let marginVal = Math.max(0, 100 + data.profitMargin); // Normalize around 100%
+            updateBar('risk', (data.actualHours / data.breakEvenHour) * 100, "Hours Burned");
+            updateBar('sust', marginVal, data.isProfitable ? "Profitable" : "Underpriced");
+
+            // Recommendations
+            let rec = "";
+            if (data.finalRate < data.targetRate) {
+                let loss = Math.round(data.targetRate - data.finalRate);
+                rec = `⚠️ <strong>DANGER:</strong> You are effectively losing <strong>$${loss}/hr</strong> vs your target.<br>Reduce scope immediately or request a budget increase of $${Math.round((data.targetRate * data.actualHours) - state.fee)}.`;
+                document.getElementById('bar-sust').className = "prog-fill danger";
+            } else {
+                rec = `✅ <strong>Healthy Project:</strong> You are earning <strong>$${data.finalRate}/hr</strong>.<br>You have a buffer of approx. ${Math.round(data.breakEvenHour - data.actualHours)} hours before hitting your minimum rate.`;
+                document.getElementById('bar-sust').className = "prog-fill success";
+            }
+            document.getElementById('recommendation-text').innerHTML = rec;
+        }
+
+        function updateLabels() {
+            document.getElementById('val-varA').textContent = state.fee.toLocaleString();
+            document.getElementById('val-varB').textContent = state.targetRate;
+        }
+
+        function updateBar(id, val, text) {
+            const bar = document.getElementById('bar-' + id);
+            const lbl = document.getElementById('lbl-' + id);
+            val = Math.max(0, Math.min(100, val));
+            bar.style.width = val + '%';
+            if (text) lbl.textContent = text;
+        }
+
+        // --- UI HELPERS ---
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+            if(tabId === 'tab-calc') Plotly.Plots.resize('chart-container');
+        }
+
+        function setMode(mode, btn) {
+            config.mode = mode;
+            document.querySelectorAll('.radio-btn').forEach(el => el.classList.remove('selected'));
+            btn.classList.add('selected');
+            updateEngine();
+        }
+
+        // --- STACK LOGIC ---
+        function initPresets() {
+            const grid = document.getElementById('preset-grid');
+            config.presets.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'item-card';
+                // Note logic flip: Negative value = Bad (Red), Positive = Good (Green)
+                const color = item.value < 0 ? 'var(--secondary)' : 'var(--profit-color)';
+                div.innerHTML = `<div class="item-icon">${item.icon}</div><div>${item.name}</div><small style="color:${color}; font-weight:700;">${item.desc}</small>`;
+                div.onclick = () => addItem(item);
+                grid.appendChild(div);
+            });
+        }
+
+        function addItem(item) {
+            state.stack.push(item);
+            renderStack();
+            updateEngine();
+        }
+
+        function clearStack() {
+            state.stack = [];
+            renderStack();
+            updateEngine();
+        }
+
+        function renderStack() {
+            const list = document.getElementById('active-stack-list');
+            if (state.stack.length === 0) { list.innerHTML = "No events added."; return; }
+            list.innerHTML = state.stack.map(i => `<span style="display:inline-block; background:#f1f5f9; padding:4px 8px; border-radius:4px; margin:2px; font-size:0.8rem; border:1px solid #e2e8f0;">${i.icon} ${i.name}</span>`).join('');
+        }
+
+        initPresets();
+        updateEngine();
+
+    </script>
+</body>
+</html>
